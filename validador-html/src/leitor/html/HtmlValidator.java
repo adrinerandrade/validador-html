@@ -1,5 +1,18 @@
 package leitor.html;
 
+import static leitor.html.InvalidHtmlFormatExceptionMessages.ATTRIBUTE_VALUE_ATTRIBUTION_NOT_FINALIZED;
+import static leitor.html.InvalidHtmlFormatExceptionMessages.CLOSING_SINGLETON_TAG;
+import static leitor.html.InvalidHtmlFormatExceptionMessages.EMPTY_TAG;
+import static leitor.html.InvalidHtmlFormatExceptionMessages.EXTRA_FINAL_TAG;
+import static leitor.html.InvalidHtmlFormatExceptionMessages.FILE_NOT_FOUND;
+import static leitor.html.InvalidHtmlFormatExceptionMessages.INCOMPLETE_ATTRIBUTE;
+import static leitor.html.InvalidHtmlFormatExceptionMessages.INCOMPLETE_TAG;
+import static leitor.html.InvalidHtmlFormatExceptionMessages.INESPECTED_CHAR_ON_ATTRIBUTE_VALUE_ATTRIBUTION;
+import static leitor.html.InvalidHtmlFormatExceptionMessages.INVALID_CARACTER_ON_TAG_CREATION;
+import static leitor.html.InvalidHtmlFormatExceptionMessages.INVALID_FINAL_TAG;
+import static leitor.html.InvalidHtmlFormatExceptionMessages.NO_PROPERTY_FOR_VALUE;
+import static leitor.html.InvalidHtmlFormatExceptionMessages.UNCLOSED_TAGS;
+
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.File;
@@ -19,20 +32,7 @@ import pilha.general.PilhaVetor;
 
 public class HtmlValidator {
 
-	private static final String ATTRIBUTE_VALUE_ATTRIBUTION_NOT_FINALIZED = "Atribuição de valor a um atributo não finalizada.";
-	private static final String CLOSING_SINGLETON_TAG = "'%s' é uma singleton tag, e não precisa ser fechada.";
-	private static final String EXTRA_FINAL_TAG = "Tag final extra encontrada.";
-	private static final String INESPECTED_CHAR_ON_ATTRIBUTE_VALUE_ATTRIBUTION = "Caracter insperado na atribuição de valor de uma tag.";
-	private static final String UNCLOSED_TAGS = "Algumas tags finais não foram fechadas: %s";
-	private static final String INVALID_FINAL_TAG = "Tag final inválida. Esperada: %s; Encontrada: %s.";
-	private static final String EMPTY_TAG = "Para compor uma tag, é necessário informar um valor.";
-	private static final String NO_PROPERTY_FOR_VALUE = "Não existe uma propriedade para ser atribuído um valor.";
-	private static final String INVALID_CARACTER_ON_TAG_CREATION = "Caracter inválido na criação de uma tag (%s).";
-	private static final String INCOMPLETE_TAG = "Tag encontrada incompleta.";
-	private static final String INCOMPLETE_ATTRIBUTE = "Atributo não completado.";
-	private static final String FILE_NOT_FOUND = "Não foi possível encontrar o arquivo no caminho %s.";
-	
-	private static final String VALID_CHAR = "[a-zA-Z!]";
+	private static final String VALID_CHAR = "[a-zA-Z!-]";
 	
 	private static final Predicate<String> IS_CONTENT = Pattern.compile(VALID_CHAR).asPredicate();
 
@@ -44,7 +44,7 @@ public class HtmlValidator {
 		try {
 			reader = new BufferedReader(new FileReader(file));
 		} catch (FileNotFoundException e) {
-			throw new IllegalArgumentException(String.format(FILE_NOT_FOUND, file.getAbsolutePath()));
+			throw new IllegalArgumentException(FILE_NOT_FOUND.message(file.getAbsolutePath()));
 		}
 	}
 
@@ -62,7 +62,7 @@ public class HtmlValidator {
 				while (!pilha.estaVazia()) {
 					unclosedTags.inserir(pilha.pop());
 				}
-				throw new InvalidHtmlFormatException(String.format(UNCLOSED_TAGS, unclosedTags), count);
+				throw new InvalidHtmlFormatException(UNCLOSED_TAGS.message(unclosedTags), count);
 			}
 		} catch (IOException e) {
 			throw new RuntimeException(e);
@@ -72,7 +72,7 @@ public class HtmlValidator {
 	public void exibir() {
 		for (int i = 0; i < counters.getTamanho(); i++) {
 			HtmlCounter counter = counters.obterElemento(i);
-			System.out.println(String.format("Elemento '%s' encontrado %d vezes.", counter.getType(), counter.getCount()));
+			System.out.println(String.format("Tag '%s' encontrada %d vezes.", counter.getType(), counter.getCount()));
 		}
  	}
 
@@ -84,7 +84,7 @@ public class HtmlValidator {
 			if (c == '<') {
 				boolean success = readTag(stream, count);
 				if (!success) {
-					throw new InvalidHtmlFormatException(INCOMPLETE_TAG, count);
+					throw new InvalidHtmlFormatException(INCOMPLETE_TAG.message(), count);
 				}
 			}
 		}
@@ -97,7 +97,7 @@ public class HtmlValidator {
 			if (c == '/') {
 				return readClosingTag(stream, count);
 			} else if (!IS_CONTENT.test(String.valueOf(c))) {
-				throw new InvalidHtmlFormatException(String.format(INVALID_CARACTER_ON_TAG_CREATION, c), count);
+				throw new InvalidHtmlFormatException(INVALID_CARACTER_ON_TAG_CREATION.message(c), count);
 			}
 			readOpeningTag(c, stream, count);
 			return true;
@@ -119,7 +119,7 @@ public class HtmlValidator {
 				createTag(tagType.toString(), count);
 				return true;
 			} else if (!IS_CONTENT.test(String.valueOf(c))) {
-				throw new InvalidHtmlFormatException(String.format(INVALID_CARACTER_ON_TAG_CREATION, c), count);
+				throw new InvalidHtmlFormatException(INVALID_CARACTER_ON_TAG_CREATION.message(c), count);
 			}
 			tagType.append(c);
 		} while ((read = stream.read()) != -1);
@@ -134,23 +134,22 @@ public class HtmlValidator {
 			char c = (char) read;
 			if (c == '>') {
 				if (StringUtils.isBlank(tagType)) {
-					throw new InvalidHtmlFormatException(EMPTY_TAG, count);
+					throw new InvalidHtmlFormatException(EMPTY_TAG.message(), count);
 				}
 				String lastElement;
 				try {
 					lastElement = pilha.pop();
 				} catch(PilhaEstaVaziaException e) {
-					throw new InvalidHtmlFormatException(EXTRA_FINAL_TAG, count);
+					throw new InvalidHtmlFormatException(EXTRA_FINAL_TAG.message(), count);
 				}
 				if (SingletonTag.isSingletonTag(tagType.toString())) {
-					throw new InvalidHtmlFormatException(String.format(CLOSING_SINGLETON_TAG, tagType), count);
+					throw new InvalidHtmlFormatException(CLOSING_SINGLETON_TAG.message(tagType), count);
 				}
 				if (!tagType.toString().equals(lastElement)) {
-					throw new InvalidHtmlFormatException(String.format(INVALID_FINAL_TAG, lastElement, tagType), count);
+					throw new InvalidHtmlFormatException(INVALID_FINAL_TAG.message(lastElement, tagType), count);
 				}
 				return true;
 			} else if (!IS_CONTENT.test(String.valueOf(c))) {
-				throw new InvalidHtmlFormatException(String.format(INVALID_CARACTER_ON_TAG_CREATION, c), count);
 			}
 			tagType.append(c);
 		}
@@ -159,7 +158,7 @@ public class HtmlValidator {
 
 	private void createTag(String type, int line) {
 		if (StringUtils.isBlank(type)) {
-			throw new InvalidHtmlFormatException(EMPTY_TAG, line);
+			throw new InvalidHtmlFormatException(EMPTY_TAG.message(), line);
 		}
 
 		if (!SingletonTag.isSingletonTag(type)) {
@@ -196,18 +195,18 @@ public class HtmlValidator {
 					lastAttribute = new HtmlAttribute(reading);
 					reading = "";
 				} else {
-					throw new InvalidHtmlFormatException(NO_PROPERTY_FOR_VALUE, count); 
+					throw new InvalidHtmlFormatException(NO_PROPERTY_FOR_VALUE.message(), count); 
 				}
 				if (lastAttribute != null && lastAttribute.getValue() == null) {
 					lastAttribute.setValue(findPropertyValue(stream, count));
 					continue;
 				} else {
-					throw new InvalidHtmlFormatException(NO_PROPERTY_FOR_VALUE, count);
+					throw new InvalidHtmlFormatException(NO_PROPERTY_FOR_VALUE.message(), count);
 				}
 			} else if (c == '>') {
 				return true;
 			} else if (!IS_CONTENT.test(String.valueOf(c))) {
-				throw new InvalidHtmlFormatException(String.format(INVALID_CARACTER_ON_TAG_CREATION, c), count);
+				throw new InvalidHtmlFormatException(INVALID_CARACTER_ON_TAG_CREATION.message(c), count);
 			}
 			reading += c;
 		}
@@ -223,9 +222,9 @@ public class HtmlValidator {
 			} else if (c == '"') {
 				return extractAttributeValue(stream, count);
 			}
-			throw new InvalidHtmlFormatException(INESPECTED_CHAR_ON_ATTRIBUTE_VALUE_ATTRIBUTION, count);
+			throw new InvalidHtmlFormatException(INESPECTED_CHAR_ON_ATTRIBUTE_VALUE_ATTRIBUTION.message(), count);
 		}
-		throw new InvalidHtmlFormatException(INCOMPLETE_ATTRIBUTE, count);
+		throw new InvalidHtmlFormatException(INCOMPLETE_ATTRIBUTE.message(), count);
 	}
 
 	private String extractAttributeValue(ByteArrayInputStream stream, int count) {
@@ -238,7 +237,7 @@ public class HtmlValidator {
 			}
 			value += c;
 		}
-		throw new InvalidHtmlFormatException(ATTRIBUTE_VALUE_ATTRIBUTION_NOT_FINALIZED, count);
+		throw new InvalidHtmlFormatException(ATTRIBUTE_VALUE_ATTRIBUTION_NOT_FINALIZED.message(), count);
 	}
 
 }
