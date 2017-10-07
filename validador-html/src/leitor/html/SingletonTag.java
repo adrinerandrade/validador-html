@@ -26,13 +26,13 @@ public enum SingletonTag {
 	};
 
 	public String value() {
-		return this.name().toLowerCase();
+		return this.name();
 	}
 
 	public static boolean isSingletonTag(String tag) {
 		return Arrays.asList(values()) //
 				.stream() //
-				.filter(v -> v.value().equals(tag)) //
+				.filter(v -> v.value().equalsIgnoreCase(tag)) //
 				.findAny() //
 				.isPresent();
 	}

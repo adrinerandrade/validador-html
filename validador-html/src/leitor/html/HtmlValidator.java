@@ -19,17 +19,20 @@ import pilha.general.PilhaVetor;
 
 public class HtmlValidator {
 
+	private static final String ATTRIBUTE_VALUE_ATTRIBUTION_NOT_FINALIZED = "Atribuição de valor a um atributo não finalizada.";
+	private static final String CLOSING_SINGLETON_TAG = "'%s' é uma singleton tag, e não precisa ser fechada.";
 	private static final String EXTRA_FINAL_TAG = "Tag final extra encontrada.";
 	private static final String INESPECTED_CHAR_ON_ATTRIBUTE_VALUE_ATTRIBUTION = "Caracter insperado na atribuição de valor de uma tag.";
 	private static final String UNCLOSED_TAGS = "Algumas tags finais não foram fechadas: %s";
 	private static final String INVALID_FINAL_TAG = "Tag final inválida. Esperada: %s; Encontrada: %s.";
-	private static final String EMPTY_TAG = "Para compor uma tag, é necessário informar um valor";
+	private static final String EMPTY_TAG = "Para compor uma tag, é necessário informar um valor.";
 	private static final String NO_PROPERTY_FOR_VALUE = "Não existe uma propriedade para ser atribuído um valor.";
-	private static final String VALID_CHAR = "[a-zA-Z!]";
 	private static final String INVALID_CARACTER_ON_TAG_CREATION = "Caracter inválido na criação de uma tag (%s).";
 	private static final String INCOMPLETE_TAG = "Tag encontrada incompleta.";
 	private static final String INCOMPLETE_ATTRIBUTE = "Atributo não completado.";
 	private static final String FILE_NOT_FOUND = "Não foi possível encontrar o arquivo no caminho %s.";
+	
+	private static final String VALID_CHAR = "[a-zA-Z!]";
 	
 	private static final Predicate<String> IS_CONTENT = Pattern.compile(VALID_CHAR).asPredicate();
 
@@ -139,6 +142,9 @@ public class HtmlValidator {
 				} catch(PilhaEstaVaziaException e) {
 					throw new InvalidHtmlFormatException(EXTRA_FINAL_TAG, count);
 				}
+				if (SingletonTag.isSingletonTag(tagType.toString())) {
+					throw new InvalidHtmlFormatException(String.format(CLOSING_SINGLETON_TAG, tagType), count);
+				}
 				if (!tagType.toString().equals(lastElement)) {
 					throw new InvalidHtmlFormatException(String.format(INVALID_FINAL_TAG, lastElement, tagType), count);
 				}
@@ -155,13 +161,10 @@ public class HtmlValidator {
 		if (StringUtils.isBlank(type)) {
 			throw new InvalidHtmlFormatException(EMPTY_TAG, line);
 		}
-		HtmlTag tag = new HtmlTag();
-		tag.setType(type);
 
 		if (!SingletonTag.isSingletonTag(type)) {
 			pilha.push(type);
 		}
-
 		
 		int buscar = counters.buscar(new HtmlCounter(type));
 		HtmlCounter counter;
@@ -177,36 +180,31 @@ public class HtmlValidator {
 
 	private boolean validateAttributes(ByteArrayInputStream stream, int count) {
 		String reading = "";
-		Pilha<HtmlAttribute> attributes = new PilhaVetor<>(100);
+		HtmlAttribute lastAttribute;
 		
 		int read;
 		while ((read = stream.read()) != -1) {
 			char c = (char) read;
 			if (Character.isWhitespace(c)) {
 				if (StringUtils.isNotBlank(reading)) {
-					attributes.push(new HtmlAttribute(reading));
+					lastAttribute = new HtmlAttribute(reading);
 					reading = "";
 				}
 				continue;
 			} else if (c == '=') {
 				if (StringUtils.isNotBlank(reading)) {
-					attributes.push(new HtmlAttribute(reading));
+					lastAttribute = new HtmlAttribute(reading);
 					reading = "";
 				} else {
 					throw new InvalidHtmlFormatException(NO_PROPERTY_FOR_VALUE, count); 
 				}
-				HtmlAttribute attribute = attributes.pop();
-				if (attribute != null && attribute.getValue() == null) {
-					attribute.setValue(findPropertyValue(stream, count));
+				if (lastAttribute != null && lastAttribute.getValue() == null) {
+					lastAttribute.setValue(findPropertyValue(stream, count));
 					continue;
 				} else {
 					throw new InvalidHtmlFormatException(NO_PROPERTY_FOR_VALUE, count);
 				}
 			} else if (c == '>') {
-				if (StringUtils.isNotBlank(reading)) {
-					attributes.push(new HtmlAttribute(reading));
-					reading = "";
-				}
 				return true;
 			} else if (!IS_CONTENT.test(String.valueOf(c))) {
 				throw new InvalidHtmlFormatException(String.format(INVALID_CARACTER_ON_TAG_CREATION, c), count);
@@ -240,7 +238,7 @@ public class HtmlValidator {
 			}
 			value += c;
 		}
-		throw new InvalidHtmlFormatException("Valor não fechado", count);
+		throw new InvalidHtmlFormatException(ATTRIBUTE_VALUE_ATTRIBUTION_NOT_FINALIZED, count);
 	}
 
 }
