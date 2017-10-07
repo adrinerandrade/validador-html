@@ -6,8 +6,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
@@ -19,7 +17,7 @@ import pilha.general.Pilha;
 import pilha.general.PilhaEstaVaziaException;
 import pilha.general.PilhaVetor;
 
-public class ValidadorHtml {
+public class HtmlValidator {
 
 	private static final String EXTRA_FINAL_TAG = "Tag final extra encontrada.";
 	private static final String INESPECTED_CHAR_ON_ATTRIBUTE_VALUE_ATTRIBUTION = "Caracter insperado na atribuição de valor de uma tag.";
@@ -37,8 +35,9 @@ public class ValidadorHtml {
 
 	private final BufferedReader reader;
 	private Pilha<String> pilha = new PilhaVetor<>(255);
+	private ListaEstaticaGenerica<HtmlCounter> counters = new ListaEstaticaGenerica<>();
 
-	public ValidadorHtml(File file) {
+	public HtmlValidator(File file) {
 		try {
 			reader = new BufferedReader(new FileReader(file));
 		} catch (FileNotFoundException e) {
@@ -66,6 +65,13 @@ public class ValidadorHtml {
 			throw new RuntimeException(e);
 		}
 	}
+	
+	public void exibir() {
+		for (int i = 0; i < counters.getTamanho(); i++) {
+			HtmlCounter counter = counters.obterElemento(i);
+			System.out.println(String.format("Elemento '%s' encontrado %d vezes.", counter.getType(), counter.getCount()));
+		}
+ 	}
 
 	private void read(String line, int count) {
 		ByteArrayInputStream stream = new ByteArrayInputStream(line.getBytes());
@@ -156,11 +162,17 @@ public class ValidadorHtml {
 			pilha.push(type);
 		}
 
-		Integer count = elementosCounter.get(type);
-		if (count == null) {
-			count = 0;
+		
+		int buscar = counters.buscar(new HtmlCounter(type));
+		HtmlCounter counter;
+		if (buscar == -1) {
+			counter = new HtmlCounter();
+			counter.setType(type);
+			counters.inserir(counter);
+		} else {
+			counter = counters.obterElemento(buscar);
 		}
-		elementosCounter.put(type, ++count);
+		counter.increment();
 	}
 
 	private boolean validateAttributes(ByteArrayInputStream stream, int count) {

@@ -5,6 +5,13 @@ public class HtmlCounter {
 	private String type;
 	private int count;
 
+	public HtmlCounter() {
+	}
+
+	public HtmlCounter(String type) {
+		this.type = type;
+	}
+
 	public String getType() {
 		return type;
 	}
@@ -16,9 +23,9 @@ public class HtmlCounter {
 	public int getCount() {
 		return count;
 	}
-
-	public void setCount(int count) {
-		this.count = count;
+	
+	public void increment() {
+		this.count++;
 	}
 
 	@Override
