@@ -36,9 +36,7 @@ public class ValidadorHtml {
 	private static final Predicate<String> IS_CONTENT = Pattern.compile(VALID_CHAR).asPredicate();
 
 	private final BufferedReader reader;
-
 	private Pilha<String> pilha = new PilhaVetor<>(255);
-	private Map<String, Integer> elementosCounter = new HashMap<>();
 
 	public ValidadorHtml(File file) {
 		try {
